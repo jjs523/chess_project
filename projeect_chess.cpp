@@ -14,6 +14,7 @@
 #define DOWN 80
 #define UP 72
 #define Select 13
+#define ESC 27
 
 #define pawn 1
 #define rock 2
@@ -30,11 +31,7 @@ int y_max = 7;
 int arrX = 2;
 int arrY = 2;
 
-int color = 0;
-
 int cnt = 0;
-
-int first = 0;
 
 int PickedPieces[2] = {0 , 0}; // x = [0], y = [1]
 
@@ -62,15 +59,11 @@ int base_board[8][8] = {
         {12,13,14,15,16,14,13,12},
         {11,11,11,11,11,11,11,11},
         {0,0,0,0,0,0,0,0},
+        {0,0,0,0,6,0,0,0},
         {0,0,0,0,0,0,0,0},
-        {0,0,0,2,0,0,0,0},
         {0,0,0,0,0,0,0,0},
         {1,1,1,1,1,1,1,1},
         {2,3,4,5,6,4,3,2}
-};
-
-char plate[8][8] = {
-        
 };
 
 struct Pieces
@@ -83,11 +76,38 @@ struct Pieces
 	char King;
 };
 
-struct Location
+struct Board
 {
-    int arrX;
-	int arrY;
-};
+	int board[8][8];
+	int turn;
+	
+	struct Board *next;
+	
+} board, save;
+
+void addFirst(struct Node* target, int data)
+{
+    struct Node* newNode = malloc(sizeof(struct Node));
+    newNode->next = target->next;
+    newNode->data = data;
+    target->next = newNode;
+}
+
+struct Node* findNode(struct Node* node, int data)
+{
+    while (!(node->next == NULL))
+    {
+        if (node->next->data == data)
+        {
+            data = node->next->data;
+			node = node -> next;
+          	return data, node;
+            break;
+        } 
+        else
+            node = node->next;
+    }
+}
 
 char blackWhite[8][8] = {
         {'O','X','O','X','O','X','O','X'},
@@ -100,10 +120,6 @@ char blackWhite[8][8] = {
         {'X','O','X','O','X','O','X','O'}
 };
 
-int moves[8][8];
-
-int pick;
-
 void gotoxy(int x, int y) {
     //x, y set coordinates
     COORD pos = { x,y };
@@ -115,16 +131,16 @@ void WhereToGo(void)	//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 �
 {
 	Next.save_x = x;
 	Next.save_y = y;
-	
-	gotoxy(0,23);
-	printf("                      ");
-	gotoxy(0,23);
-	printf("nice");
+
+	gotoxy(36,0);	
+	printf("                                             ");	
+	gotoxy(36,2);	
+	printf("                                             ");	
 		
 	gotoxy(36,0);	
-	printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[0], PickedPieces[1], base_board[PickedPieces[1]][PickedPieces[0]]);
+	printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[1], PickedPieces[0], base_board[PickedPieces[1]][PickedPieces[0]]);
 	gotoxy(36,2);	
-	printf("마지막으로 찍은 값 X : %d Y : %d data = %d", Next.save_x, Next.save_y, base_board[Next.save_y][Next.save_x]);
+	printf("마지막으로 찍은 값 X : %d Y : %d data = %d", Next.save_y, Next.save_x, base_board[Next.save_y][Next.save_x]);
 	
 	Selected_Pieces(PickedPieces[0], PickedPieces[1]);
 }
@@ -154,7 +170,7 @@ void move(void)
 		base_board[Next.save_y][Next.save_x] = base_board[PickedPieces[1]][PickedPieces[0]];
 		base_board[PickedPieces[1]][PickedPieces[0]] = 0;			
 		gotoxy(36,8);
-		printf("먹음");
+		printf("attack");
 	}
 	
 	else
@@ -163,27 +179,23 @@ void move(void)
 		base_board[Next.save_y][Next.save_x] = base_board[PickedPieces[1]][PickedPieces[0]];
 		base_board[PickedPieces[1]][PickedPieces[0]] = temp;		
 		gotoxy(36,8);
-		printf("바꿈");
+		printf("move");
 	}
 	cnt = 0 ;
 	turn++;
+	
+	
+	
+	
 }
 
 int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위로 가는 것  x - 는 왼쪽  
-{
-	if(Next.save_x == PickedPieces[0] && Next.save_y == PickedPieces[1])  //같은 위치 찍으면 취소가 되게하는  것  
-	{
-		cnt--;
-		gotoxy(36,11);
-		printf("                               ");
-	}
-	
+{	
 	if(turn % 2 == 0) //white  
 	{
 		if(PickedPieces[1] == 6) // 최대 2두칸 이동 가능한 상항 
 		{	
-			int m = 0;
-			if(!(base_board[PickedPieces[1] - 1][PickedPieces[0]]))
+			if(!(base_board[PickedPieces[1] - 1][PickedPieces[0]])) // 앞 2칸에 기물이 있는지 없는지 확인  
 			{
 				if(PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] == Next.save_x) // 1
 				{	
@@ -193,17 +205,28 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					printf("한칸으로 들어감");
 					move();	
 				}
-			 	else if(PickedPieces[1] - 2 == Next.save_y && PickedPieces[0] == Next.save_x) // 2
+				
+				if(!(base_board[PickedPieces[1] - 2][PickedPieces[0]])) 
 				{
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("두칸으로 들어감");
-					move();	
+				 	if(PickedPieces[1] - 2 == Next.save_y && PickedPieces[0] == Next.save_x) // 2
+					{
+						gotoxy(36,11);
+						printf("                               ");
+						gotoxy(36,11);	
+						printf("두칸으로 들어감");
+						move();	
+					}
 				}
 			}
-			else if((base_board[PickedPieces[1] - 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] - 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
+			if((base_board[PickedPieces[1] - 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] - 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
 			{
+				
+				gotoxy(50,20);
+				printf("%d", (PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x]);
+				gotoxy(52,20);
+				printf("%d", (PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x]);
+				
+				
 				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
 				{	
 					gotoxy(36,11);
@@ -212,7 +235,7 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					printf("왼쪽 위으로 들어감");
 					move();	
 				}
-				else if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
+				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
 				{	
 					gotoxy(36,11);
 					printf("                               ");
@@ -227,15 +250,13 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 				printf("                               ");
 				gotoxy(36,11);
 				printf("이동할 위치를 다시 찍어 주세요.") ;
-				
-			}
-				
+			}	
 		}
 		else 
 		{
-			if(!(base_board[PickedPieces[1] - 1][PickedPieces[0]]))
+			if(!(base_board[PickedPieces[1] - 1][PickedPieces[0]]))//앞에 말이 있으면 못 움직임
 			{
-				if(PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] == Next.save_x)
+				if(PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] == Next.save_x) 
 				{	
 					gotoxy(36,11);
 					printf("                               ");
@@ -244,7 +265,7 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					move();	
 				}
 			}
-			else if((base_board[PickedPieces[1] - 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] - 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
+			if((base_board[PickedPieces[1] - 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] - 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
 			{
 				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
 				{	
@@ -254,7 +275,7 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					printf("왼쪽 위으로 들어감");
 					move();	
 				}
-				else if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
+				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
 				{	
 					gotoxy(36,11);
 					printf("                               ");
@@ -275,18 +296,10 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 		
 	}
 	else//black
-	{
-		if(Next.save_x == PickedPieces[0] && Next.save_y == PickedPieces[1]) 
-		{
-			cnt--;
-			gotoxy(36,11);
-			printf("                               ");
-		}
-		
-		if(PickedPieces[1] == 1)
+	{	
+		if(PickedPieces[1] == 1) //2칸 이동 가 능  
 		{	
-			int m = 0;
-			if(!(base_board[PickedPieces[1] + 1][PickedPieces[0]])) //앞에 말이 있으면 못 움직임  
+			if(!(base_board[PickedPieces[1] + 1][PickedPieces[0]])) // 앞 2칸에 기물이 있는지 없는지 확인  
 			{
 				if(PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] == Next.save_x)
 				{	
@@ -296,33 +309,38 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					printf("한칸이동");
 					move();	
 				}
-			 	else if(PickedPieces[1] + 2 == Next.save_y && PickedPieces[0] == Next.save_x)
+				
+				if(!(base_board[PickedPieces[1] + 2][PickedPieces[0]]))
 				{
+					if(PickedPieces[1] + 2 == Next.save_y && PickedPieces[0] == Next.save_x)
+					{	
+						gotoxy(36,11);
+						printf("                               ");
+						gotoxy(36,11);	
+						printf("두칸이동");
+						move();	
+					}
+				}
+			 	
+			if((base_board[PickedPieces[1] + 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] + 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
+			{
+				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
+				{	
 					gotoxy(36,11);
 					printf("                               ");
 					gotoxy(36,11);	
-					printf("두칸이동");
+					printf("왼쪽 밑으로 들어감??");
 					move();	
 				}
-				else if((base_board[PickedPieces[1] + 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] + 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
-				{
-					if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-					{	
-						gotoxy(36,11);
-						printf("                               ");
-						gotoxy(36,11);	
-						printf("왼쪽 밑으로 들어감");
-						move();	
-					}
-					else if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-					{	
-						gotoxy(36,11);
-						printf("                               ");
-						gotoxy(36,11);	
-						printf("오른쪽 밑으로 들어감!!");
-						move();	
-					}
+				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
+				{	
+					gotoxy(36,11);
+					printf("                               ");
+					gotoxy(36,11);	
+					printf("오른쪽 밑으로 들어감!!");
+					move();	
 				}
+			}
 			}
 			else
 			{
@@ -347,7 +365,7 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					move();	
 				}
 			}
-			else if((base_board[PickedPieces[1] + 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] + 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
+			if((base_board[PickedPieces[1] + 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] + 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
 			{
 				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
 				{	
@@ -357,7 +375,7 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 					printf("왼쪽 밑으로 들어감");
 					move();	
 				}
-				else if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
+				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
 				{	
 					gotoxy(36,11);
 					printf("                               ");
@@ -465,66 +483,466 @@ int promotion()
 
 void Rook(void)
 {
-	int a = 1;
-	int emty[4] = { 0, }; // 0 up 1 down 2 left 3 right 
-	
-	emty[0] = PickedPieces[1];
-	
-	emty[1] = 7 - PickedPieces[1];
-	
-	emty[2] = PickedPieces[0];
-	
-	emty[3] = 7 - PickedPieces[0];
-	
-	/*
-	if(Next.save_x == PickedPieces[0] && Next.save_y == PickedPieces[1])  //같은 위치 찍으면 취소가 되게하는  것  
-	{
-		cnt--;
-		gotoxy(36,11);
-		printf("                               ");
-	}
-	*/
-	for(int i = 0; i <= 7; i++)
-	{
-		gotoxy(80,i);
-		printf("%d %d",i, PickedPieces[0]);
-		gotoxy(90,i);
-		printf("%d %d",PickedPieces[1], i);
-		
-		/*
-		if(base_board[i][PickedPieces[0]] && !(PickedPieces[1] == i)) //y
-		{
-			
-			emty[0] -= i;
-			
-			gotoxy(80, 20+ i);
-			printf("%d",emty[0]);
-		}
+	int emty = 0;
 
-		if(base_board[PickedPieces[1]][i] && !(PickedPieces[0] == i) && a)//x
+	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	
+	gotoxy(50,25);								//잠시 체크용  
+	printf("                             ");
+	gotoxy(50,25);
+	printf("yy : %2.f xx : %2.f", yy, xx);
+	
+	if(Next.save_x == PickedPieces[0]) // up down 
+	{
+		
+		if(Next.save_y < PickedPieces[1]) //up
 		{
-			emty[3] = i - 1;
-			
-			gotoxy(90, 20+ i);
-			printf("%d",emty[3]);
-			a = 0;
+			for(int i = 1; i <= yy; i++) //위 빈공간 확인 반복문
+			{
+				if(base_board[PickedPieces[1] - i][PickedPieces[0]])
+					emty++;
+			}
 		}
-		else 
-			emty[3]++;
-			*/
+		else //down
+		{
+			for(int i = 1; i <= yy ; i++) //밑 빈공간 확인 반복문 
+			{
+				if(base_board[PickedPieces[1] + i][PickedPieces[0]])
+					emty++;
+			}
+		}
+		
+		//이동 가능한가에 대한 판단 
+		if(!(emty)) // 아무것도 없을때 
+			move();
+		else if(emty == 1 && ((xx == 1 && yy == 1) && (turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7))) // 흰 
+			move();
+		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			move();
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7))) // 흰 
+			move();
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			move(); 
 	}
 	
+	else if(Next.save_y == PickedPieces[1]) // left right
+	{
+		if(Next.save_x < PickedPieces[0]) //left
+		{
+			for(int i = 1; i <= xx ; i++) //왼쪽 빈공간 확인 반복문 
+			{				
+				if(base_board[PickedPieces[1]][PickedPieces[0] - i])
+					emty++;			
+			}
+		}
+		else //right 
+		{
+			for(int i = 1; i <= xx ; i++) //오른쪽 빈공간 확인 반복문 
+			{
+				if(base_board[PickedPieces[1]][PickedPieces[0] + i])
+					emty++;	
+			}
+		}
+		
+		//이동 가능한가에 대한 판단 
+		if(!(emty)) // 아무것도 없을때 
+			move();
+			
+		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+			move();
+			
+		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			move();
+			
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+			move();
+			
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+			move(); 
+
+			
+	}
+	else
+	{
+		gotoxy(50,26);
+		printf("                      ");
+	}
+
+}
+
+void Knight(void)
+{
+	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
+	int cntline = 0;
 	
-	gotoxy(90,30);
-	printf("Up %d",emty[0]);
-	gotoxy(90,31);
-	printf("Down %d",emty[1]);
-	gotoxy(90,32);
-	printf("Left %d",emty[2]);
-	gotoxy(90,33);
-	printf("Right %d",emty[3]);
+	gotoxy(50,27);
+	printf("   ");
 	
+	//기울기를 사용하여 이동 
 	
+	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	
+	gotoxy(50,25);								//잠시 체크용  
+	printf("                             ");
+	gotoxy(50,25);
+	printf("yy : %2.f xx : %2.f", yy, xx);
+	
+	if(yy == 2 && xx == 1 || yy == 1 && xx == 2)
+	{
+		if((turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7) || !(base_board[Next.save_y][Next.save_x]))
+			move();
+					
+		else if((turn % 2 == 1 && base_board[Next.save_y][Next.save_x] < 7) || !(base_board[Next.save_y][Next.save_x]))
+			move();
+	}
+	else
+	{
+		gotoxy(50,26);
+		printf("                      ");
+	}
+}
+
+void Bishop(void)
+{
+	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
+	int cntline = 0;
+	
+	gotoxy(50,27);
+	printf("   ");
+	
+	//기울기를 통한 대각선 이동 
+	
+	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	
+	gotoxy(50,25);								//잠시 체크용  
+	printf("                             ");
+	gotoxy(50,25);
+	printf("yy : %2.f xx : %2.f", yy, xx);
+	
+	float inclination = yy / xx; 
+
+	if(inclination == 1)
+	{
+		gotoxy(50,26);
+		printf("                      ");
+		gotoxy(50,26);
+		printf("inclination : %2.f",inclination);
+		
+		if(Next.save_y > PickedPieces[1]) // down 
+		{
+			if(Next.save_x < PickedPieces[0]) //left
+			{
+				for(int i = 1; i <= yy ; i++) //왼쪽 밑 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] - cntline;
+					
+					if(base_board[PickedPieces[1] + i][j])
+						emty++;
+				}
+			}
+			else //right 
+			{
+				for(int i = 1; i <= yy ; i++) //오른쪽 밑 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] + cntline;
+					
+					if(base_board[PickedPieces[1] + i][j])
+						emty++;
+				}
+			}
+			
+			//이동 가능한가에 대한 판단 
+			if(!(emty)) // 아무것도 없을때 
+				move();
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+				move();
+				
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+				move(); 
+		}
+		else // up
+		{
+			if(Next.save_x < PickedPieces[0]) //left
+			{
+				for(int i = 1; i <= yy ; i++) //왼쪽 위 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] - cntline;
+					
+					if(base_board[PickedPieces[1] - i][j])
+						emty++;
+				}
+			}
+			else //right 
+			{
+				for(int i = 1; i <= yy ; i++) //오른쪽 위 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] + cntline;
+					
+					if(base_board[PickedPieces[1] - i][j])
+						emty++;
+				}
+			}
+			
+			//이동 가능한가에 대한 판단
+			if(!(emty)) // 아무것도 없을때 
+				move();
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+				move();
+				
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+				move(); 
+		}
+	}
+	else
+	{
+		gotoxy(50,26);
+		printf("                      ");
+	}
+
+	cntline = 0;
+}
+
+void Queen(void)
+{
+	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
+	int cntline = 0;
+	
+	gotoxy(50,27);
+	printf("   ");
+	
+	//기울기를 통한 대각선 이동 
+	
+	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	
+	gotoxy(50,25);								//잠시 체크용  
+	printf("                             ");
+	gotoxy(50,25);
+	printf("yy : %2.f xx : %2.f", yy, xx);
+	
+	float inclination = yy / xx; 
+
+	if(inclination == 1)
+	{
+		gotoxy(50,26);
+		printf("                      ");
+		gotoxy(50,26);
+		printf("inclination : %2.f",inclination);
+		
+		if(Next.save_y > PickedPieces[1]) // down 
+		{
+			if(Next.save_x < PickedPieces[0]) //left
+			{
+				for(int i = 1; i <= yy ; i++) //왼쪽 밑 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] - cntline;
+					
+					if(base_board[PickedPieces[1] + i][j])
+						emty++;
+				}
+			}
+			else //right 
+			{
+				for(int i = 1; i <= yy ; i++) //오른쪽 밑 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] + cntline;
+					
+					if(base_board[PickedPieces[1] + i][j])
+						emty++;
+				}
+			}
+			
+			//이동 가능한가에 대한 판단 
+			if(!(emty)) // 아무것도 없을때 
+				move();
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+				move();
+				
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+				move(); 
+		}
+		else // up
+		{
+			if(Next.save_x < PickedPieces[0]) //left
+			{
+				for(int i = 1; i <= yy ; i++) //왼쪽 위 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] - cntline;
+					
+					if(base_board[PickedPieces[1] - i][j])
+						emty++;
+				}
+			}
+			else //right 
+			{
+				for(int i = 1; i <= yy ; i++) //오른쪽 위 대각선 빈공간 확인 반복문 
+				{
+					cntline++;
+					int j = PickedPieces[0] + cntline;
+					
+					if(base_board[PickedPieces[1] - i][j])
+						emty++;		
+				}
+			}
+			
+			//이동 가능한가에 대한 판단
+			if(!(emty)) // 아무것도 없을때 
+				move();
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+				move();
+				
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+				move();
+				
+			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+				move(); 
+		}
+	}
+	else if(Next.save_x == PickedPieces[0]) // up down 
+	{
+		
+		if(Next.save_y < PickedPieces[1]) //up
+		{
+			for(int i = 1; i <= yy; i++) //위 빈공간 확인 반복문
+			{
+				if(base_board[PickedPieces[1] - i][PickedPieces[0]])
+					emty++;
+			}
+		}
+		else //down
+		{
+			for(int i = 1; i <= yy ; i++) //밑 빈공간 확인 반복문 
+			{
+				if(base_board[PickedPieces[1] + i][PickedPieces[0]])
+					emty++;
+			}
+		}
+		
+		//이동 가능한가에 대한 판단 
+		if(!(emty)) // 아무것도 없을때 
+			move();
+		else if(emty == 1 && ((xx == 1 && yy == 1) && (turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7))) // 흰 
+			move();
+		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			move();
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7))) // 흰 
+			move();
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			move(); 
+	}
+	
+	else if(Next.save_y == PickedPieces[1]) // left right
+	{
+		if(Next.save_x < PickedPieces[0]) //left
+		{
+			for(int i = 1; i <= xx ; i++) //왼쪽 빈공간 확인 반복문 
+			{				
+				if(base_board[PickedPieces[1]][PickedPieces[0] - i])
+					emty++;			
+			}
+		}
+		else //right 
+		{
+			for(int i = 1; i <= xx ; i++) //오른쪽 빈공간 확인 반복문 
+			{
+				if(base_board[PickedPieces[1]][PickedPieces[0] + i])
+					emty++;	
+			}
+		}
+		
+		//이동 가능한가에 대한 판단 
+		if(!(emty)) // 아무것도 없을때 
+			move();
+			
+		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+			move();
+			
+		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			move();
+			
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+			move();
+			
+		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+			move(); 	
+	}
+	else
+	{
+		gotoxy(50,26);
+		printf("                      ");
+	}
+}
+
+void King(void)
+{
+	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
+	int cntline = 0;
+	
+	gotoxy(50,27);
+	printf("   ");
+	
+	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	
+	gotoxy(50,25);								//잠시 체크용  
+	printf("                             ");
+	gotoxy(50,25);
+	printf("yy : %2.f xx : %2.f", yy, xx);
+	
+	if((yy == 1 && xx == 1) || ((yy == 1 && xx == 0) || (yy == 0 && xx == 1)))
+	{
+		if((turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7) || !(base_board[Next.save_y][Next.save_x]))
+			move();
+					
+		else if((turn % 2 == 1 && base_board[Next.save_y][Next.save_x] < 7) || !(base_board[Next.save_y][Next.save_x]))
+			move();
+	}
 }
 
 void Selected_Pieces(int xx, int yy)
@@ -550,21 +968,25 @@ void Selected_Pieces(int xx, int yy)
 		case 3:
 		case 13:
 			printf("3 knight\n");
+			Knight();
 			break;
 		
 		case 4:
 		case 14:				
 			printf("4 bishop\n");
+			Bishop();
 			break;
 		
 		case 5:
 		case 15:	
 			printf("5 queen\n");
+			Queen();
 			break;
 			
 		case 6:
 		case 16:	
 			printf("6 king\n");
+			King();
 			break;		
 	}
 }
@@ -668,6 +1090,8 @@ int KeyControl()
 		
 	else if((input == 'S' || input == 's') || input == DOWN)
 		return DOWN;
+	else if(input == ESC)
+		return ESC;
 }
  
 int Rules(void)
@@ -915,7 +1339,7 @@ int BoardControl1(void)
 	Erase.save_y = arrY;
 }
   
-void Game(void)
+int Game()
 {	
 	
 	struct Pieces Black_Pieces;
@@ -982,7 +1406,7 @@ void Game(void)
 		gotoxy(0,21);
 		printf("                                                                     ");
 		gotoxy(0,21);
-		printf("real array coordinates and values : %d %d %d", x, y, base_board[y][x]); //array coordinates 
+		printf("real array coordinates and values : %d %d %d", y, x, base_board[y][x]); //array coordinates 
 		
 		BoardControl1(); //Current tile outline
 
@@ -1044,32 +1468,26 @@ void Game(void)
 	    				switch(base_board[i][j] - 10)
 	    				{
 	    					case 1:
-	    						plate[i][j] = Black_Pieces.Pawn[j];
 	    						printf("%c", Black_Pieces.Pawn[j]);
 	    						break;
 	    						
 	    					case 2:
-	    						plate[i][j] = Black_Pieces.Rook[0];
 								printf("%c", Black_Pieces.Rook[0]);
 								break;
 							
 							case 3:
-								plate[i][j] = Black_Pieces.Knight[0];
 								printf("%c", Black_Pieces.Knight[0]);
 								break;
 							
 							case 4:
-								plate[i][j] = Black_Pieces.Bishop[0];
 								printf("%c", Black_Pieces.Bishop[0]);
 								break;
 								
 							case 5:
-								plate[i][j] = Black_Pieces.Queen;
 								printf("%c", Black_Pieces.Queen);
 								break;
 							
 							case 6:
-								plate[i][j] = Black_Pieces.King;
 								printf("%c", Black_Pieces.King);
 								break;	
 						}	
@@ -1080,40 +1498,39 @@ void Game(void)
 						switch(base_board[i][j])
 	    				{
 	    					case 1:
-	    						plate[i][j] = White_Pieces.Pawn[j];
 	    						printf("%c", White_Pieces.Pawn[j]);
 	    						break;
 	    						
 	    					case 2:
-	    						plate[i][j] = White_Pieces.Rook[0];
 								printf("%c", White_Pieces.Rook[0]);
 								break;
 							
 							case 3:
-								plate[i][j] = White_Pieces.Knight[0];
 								printf("%c", White_Pieces.Knight[0]);
 								break;
 							
 							case 4:
-								plate[i][j] = White_Pieces.Bishop[0];
 								printf("%c", White_Pieces.Bishop[0]);
 								break;
 								
 							case 5:
-								plate[i][j] = White_Pieces.Queen;
 								printf("%c", White_Pieces.Queen);
 								break;
 							
 							case 6:
-								plate[i][j] = White_Pieces.King;
 								printf("%c", White_Pieces.King);
 								break;	
 						}
 					}
-				
 	    		}
 	    		else
-	    			printf("%c", blackWhite[i][j]);
+	    		{
+					if(blackWhite[i][j] == 'X')	 
+	    				printf("□");
+	    			else
+	    				printf("■");
+				}
+	    			
 	    		k += 4;
 	    	}
 	    	k = 2;
@@ -1121,9 +1538,9 @@ void Game(void)
 		}
 		
 		gotoxy(36,0);	
-		printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[0], PickedPieces[1], base_board[PickedPieces[1]][PickedPieces[0]]);
+		printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[1], PickedPieces[0], base_board[PickedPieces[1]][PickedPieces[0]]);
 		gotoxy(36,2);	
-		printf("마지막으로 찍은 값 X : %d Y : %d data = %d", Next.save_x, Next.save_y, base_board[Next.save_y][Next.save_x]);
+		printf("마지막으로 찍은 값 X : %d Y : %d data = %d", Next.save_y, Next.save_x, base_board[Next.save_y][Next.save_x]);
 		
 		
 		c = KeyControl(); // Move the chessboard and select pieces
@@ -1159,6 +1576,11 @@ void Game(void)
 		    		arrY -= 2;
 				}
 		        break;
+			
+			case ESC:
+				return 0;
+				break;
+		        
 		    case Select:
 		    	if(base_board[y][x])
 				{
@@ -1192,7 +1614,7 @@ void Game(void)
 					{
 						gotoxy(36,11);
 						printf("                               ");
-						if(turn % 2 == 0 && base_board[y][x] >= 6)
+						if(turn % 2 == 0 && base_board[y][x] > 7)
 						{
 							gotoxy(36,6);
 							printf(" 							 ");
@@ -1244,112 +1666,19 @@ void Game(void)
 				}
 		    	break; 
 		}
-		first++;
 	}
 } 
  
-void qr(void)
-{   
-
-	gotoxy(0,19);                                                                                            
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@      @@@             @@@;   @@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@      @@@             @@@;   @@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@      @@@             @@@;   @@@@@@@@@@@@@@@@   @@@@@@@@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@@@@   ;@@@@@@@@@@@@@@@@            ;@@@   @@@                ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@@@@   ;@@@@@@@@@@@@@@@@            ;@@@   @@@                ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@@@@   ;@@@@@@@@@@@@@@@@            ;@@@   @@@                ;@@@\n");  
-	printf("\t\t\t\t\t\t@@@   -;;;;;;;;;   ;@@@   ;;;@@@;;;=@@@;;;;;;@@@@@@@;;;      -;;=@@@   @@@   -;;;;;;;;;   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@      @@@@@@@@@@      @@@@@@@@@@      ;@@@@@@   @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@      @@@@@@@@@@      @@@@@@@@@@      ;@@@@@@   @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@      @@@@@@@@@@      @@@@@@@@@@      ;@@@@@@   @@@   ;@@@@@@@@@   ;@@@\n");  
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@   ;@@@   @@@   ;@@@@@@@@@@@@@@@;      @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@   ;@@@   @@@   ;@@@@@@@@@@@@@@@;      @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@   ;@@@   @@@   ;@@@@@@@@@@@@@@@;      @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@         @@@;   @@@@@@@@@;      @@@@@@@@@@@@@   @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@         @@@;   @@@@@@@@@;      @@@@@@@@@@@@@   @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@         @@@;   @@@@@@@@@;      @@@@@@@@@@@@@   @@@   ;@@@@@@@@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@   @@@;            ;@@@@@@@@@      ;@@@   @@@                ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@   @@@;            ;@@@@@@@@@      ;@@@   @@@                ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@   @@@;            ;@@@@@@@@@      ;@@@   @@@                ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@;;;;;;;;;;;;;;;;=@@@   @@@   @@@;   ;;;   ;;;;;;;@@@;;;;;;-  ;@@@   @@@;;;;;;;;;;;;;;;;=@@@\n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@   @@@;   @@@   @@@;   @@@   @@@;  ;@@@   @@@@@@@@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@   @@@;   @@@   @@@;   @@@   @@@;  ;@@@   @@@@@@@@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@   @@@;   @@@   @@@;   @@@   @@@;  ;@@@   @@@@@@@@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t                                       @@@   @@@;   @@@      ;@@;                             \n");   
-	printf("\t\t\t\t\t\t                                       @@@   @@@;   @@@      ;@@;                             \n");  
-	printf("\t\t\t\t\t\t                                       @@@   @@@;   @@@      ;@@;                             \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@   ;@@@@@@@@@@@@@@@;   @@@   @@@@@@@@@@@@@          @@@   @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@   ;@@@@@@@@@@@@@@@;   @@@   @@@@@@@@@@@@@          @@@   @@@;   @@@   @@@;   \n");  
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@   ;@@@@@@@@@@@@@@@;   @@@   @@@@@@@@@@@@@          @@@   @@@;   @@@   @@@;   \n");  
-	printf("\t\t\t\t\t\t      ;@@@   @@@@@@;   @@@   @@@             @@@;   @@@      ;@@@@@@   @@@@@@@@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t      ;@@@   @@@@@@;   @@@   @@@             @@@;   @@@      ;@@@@@@   @@@@@@@@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t      ;@@@   @@@@@@;   @@@   @@@             @@@;   @@@      ;@@@@@@   @@@@@@@@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t   @@@;      @@@@@@@@@@      @@@   ;@@@@@@@@@@@@@@@@@@@@@@          @@@@@@                    \n");  
-	printf("\t\t\t\t\t\t   @@@;      @@@@@@@@@@      @@@   ;@@@@@@@@@@@@@@@@@@@@@@          @@@@@@                    \n");   
-	printf("\t\t\t\t\t\t   @@@;      @@@@@@@@@@      @@@   ;@@@@@@@@@@@@@@@@@@@@@@          @@@@@@                    \n");
-	printf("\t\t\t\t\t\t;;;;;;-      ;;;;;;;;;;      @@@;;;=@@@;;;;;;@@@@@@@;;;;;;   -;;;;;;;;;;;;;;;-   ;;;   ;;;-   \n");   
-	printf("\t\t\t\t\t\t@@@                          @@@@@@@@@@      @@@@@@@         ;@@@@@@      @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@                          @@@@@@@@@@      @@@@@@@         ;@@@@@@      @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@                          @@@@@@@@@@      @@@@@@@         ;@@@@@@      @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t   @@@@@@@@@@   @@@@@@@      @@@   ;@@@   @@@@@@@@@@@@@@@@   ;@@;                @@@@@@       \n");   
-	printf("\t\t\t\t\t\t   @@@@@@@@@@   @@@@@@@      @@@   ;@@@   @@@@@@@@@@@@@@@@   ;@@;                @@@@@@       \n");   
-	printf("\t\t\t\t\t\t   @@@@@@@@@@   @@@@@@@      @@@   ;@@@   @@@@@@@@@@@@@@@@   ;@@;                @@@@@@       \n");   
-	printf("\t\t\t\t\t\t   @@@@@@@   @@@             @@@@@@;   @@@      ;@@@@@@   @@@@@@;   @@@@@@   ;@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t   @@@@@@@   @@@             @@@@@@;   @@@      ;@@@@@@   @@@@@@;   @@@@@@   ;@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t   @@@@@@@   @@@             @@@@@@;   @@@      ;@@@@@@   @@@@@@;   @@@@@@   ;@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t   @@@@@@@@@@   @@@@@@@@@@                @@@@@@@@@@      @@@;  ;@@@   @@@@@@;   @@@@@@       \n");   
-	printf("\t\t\t\t\t\t   @@@@@@@@@@   @@@@@@@@@@                @@@@@@@@@@      @@@;  ;@@@   @@@@@@;   @@@@@@       \n");   
-	printf("\t\t\t\t\t\t   @@@@@@@@@@   @@@@@@@@@@                @@@@@@@@@@      @@@;  ;@@@   @@@@@@;   @@@@@@       \n");   
-	printf("\t\t\t\t\t\t;;;@@@=;;;@@@;;;;;;;;;;;;;;;;          ;;;;;;@@@@@@@;;;   ;;;-  ;@@@   @@@@@@=;;;;;;;;;;;;-   \n");   
-	printf("\t\t\t\t\t\t@@@@@@;   @@@@@@          @@@          @@@   @@@@@@@@@@         ;@@@   @@@@@@@@@@      @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@@@@;   @@@@@@          @@@          @@@   @@@@@@@@@@         ;@@@   @@@@@@@@@@      @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@@@@;   @@@@@@          @@@          @@@   @@@@@@@@@@         ;@@@   @@@@@@@@@@      @@@;   \n");   
-	printf("\t\t\t\t\t\t             @@@@@@@@@@   @@@@@@@@@;   @@@   @@@@@@@   @@@                @@@;   @@@@@@       \n");   
-	printf("\t\t\t\t\t\t             @@@@@@@@@@   @@@@@@@@@;   @@@   @@@@@@@   @@@                @@@;   @@@@@@       \n");  
-	printf("\t\t\t\t\t\t             @@@@@@@@@@   @@@@@@@@@;   @@@   @@@@@@@   @@@                @@@;   @@@@@@       \n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@             @@@   @@@;      @@@@@@;   @@@      ;@@@@@@   @@@@@@@@@@   @@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@             @@@   @@@;      @@@@@@;   @@@      ;@@@@@@   @@@@@@@@@@   @@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@             @@@   @@@;      @@@@@@;   @@@      ;@@@@@@   @@@@@@@@@@   @@@   ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@       @@@      ;@@@   @@@@@@@@@@@@@@@@      ;@@@@@@                   @@@;      @@@       \n");   
-	printf("\t\t\t\t\t\t@@@       @@@      ;@@@   @@@@@@@@@@@@@@@@      ;@@@@@@                   @@@;      @@@       \n");   
-	printf("\t\t\t\t\t\t@@@       @@@      ;@@@   @@@@@@@@@@@@@@@@      ;@@@@@@                   @@@;      @@@       \n");   
-	printf("\t\t\t\t\t\t@@@       ;;;;;;   -;;;   @@@@@@;;;=@@@;;;      ;@@@@@@   ;;;;;;-         @@@=;;;   ;;;;;;-   \n");   
-	printf("\t\t\t\t\t\t@@@          @@@          @@@@@@   ;@@@         ;@@@@@@   @@@@@@;         @@@@@@@      @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@          @@@          @@@@@@   ;@@@         ;@@@@@@   @@@@@@;         @@@@@@@      @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@          @@@   -;;;   @@@;;;   ;@@@   ;;;;;;;;;;@@@;;;;;;;;;;;;;;;;;;;@@@@@@@   ;;;@@@=;;;\n");   
-	printf("\t\t\t\t\t\t@@@          @@@   ;@@@   @@@      ;@@@   @@@@@@;   @@@@@@      ;@@@@@@@@@@@@@@@@   @@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@          @@@   ;@@@   @@@      ;@@@   @@@@@@;   @@@@@@      ;@@@@@@@@@@@@@@@@   @@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@          @@@   ;@@@   @@@      ;@@@   @@@@@@;   @@@@@@      ;@@@@@@@@@@@@@@@@   @@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t                          @@@@@@@@@;   @@@                @@@;  ;@@@         ;@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t                          @@@@@@@@@;   @@@                @@@;  ;@@@         ;@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t                          @@@@@@@@@;   @@@                @@@;  ;@@@         ;@@@@@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@   @@@;      @@@   ;@@@   @@@@@@@@@@@@@   @@@   ;@@@@@@@@@       \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@   @@@;      @@@   ;@@@   @@@@@@@@@@@@@   @@@   ;@@@@@@@@@       \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@   @@@;      @@@   ;@@@   @@@@@@@@@@@@@   @@@   ;@@@@@@@@@       \n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@         @@@;   @@@   @@@;   @@@      ;@@@@@@         ;@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@         @@@;   @@@   @@@;   @@@      ;@@@@@@         ;@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@         @@@;   @@@   @@@;   @@@      ;@@@@@@         ;@@@         ;@@@\n");   
-	printf("\t\t\t\t\t\t@@@   -;;;;;;;;;   ;@@@   ;;;   @@@;   @@@   @@@=;;;@@@;;;   -;;=@@@;;;;;;;;;=@@@   ;;;;;;=@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@   @@@;   @@@   @@@@@@@@@@@@@      ;@@@@@@@@@@@@@@@@   @@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@   @@@;   @@@   @@@@@@@@@@@@@      ;@@@@@@@@@@@@@@@@   @@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@   @@@;   @@@   @@@@@@@@@@@@@      ;@@@@@@@@@@@@@@@@   @@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@             @@@;   @@@@@@@@@@@@;         @@@;   @@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@             @@@;   @@@@@@@@@@@@;         @@@;   @@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@             @@@;   @@@@@@@@@@@@;         @@@;   @@@@@@@@@@@@@\n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@   ;@@@@@@      ;@@@@@@   @@@@@@;      @@@@@@@@@@@@@@@@@@@;   \n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@   ;@@@@@@      ;@@@@@@   @@@@@@;      @@@@@@@@@@@@@@@@@@@;   \n");   
-	printf("\t\t\t\t\t\t@@@   ;@@@@@@@@@   ;@@@   @@@@@@   ;@@@@@@      ;@@@@@@   @@@@@@;      @@@@@@@@@@@@@@@@@@@;   \n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@      ;@@@      @@@;   @@@   @@@@@@@@@@      @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@      ;@@@      @@@;   @@@   @@@@@@@@@@      @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@                ;@@@   @@@      ;@@@      @@@;   @@@   @@@@@@@@@@      @@@;   @@@   @@@;   \n");   
-	printf("\t\t\t\t\t\t@@@;;;;;;;;;;;;;;;;=@@@   @@@;;;   ;@@@;;;   ;;;-   @@@;;;@@@@@@=;;;;;;   @@@=;;;@@@;;;;;;-   \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@   ;@@@@@@          @@@@@@@@@@@@;   @@@   @@@@@@@@@@@@@       \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@   ;@@@@@@          @@@@@@@@@@@@;   @@@   @@@@@@@@@@@@@       \n");   
-	printf("\t\t\t\t\t\t@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@   ;@@@@@@          @@@@@@@@@@@@;   @@@   @@@@@@@@@@@@@       \n");
-	while(1)
-		if(getch() == Select)
-			break;
-}
+ void list(void)
+ {
+ 	save.Board = base_board;
+ 	
+ 	board* head = (board*)malloc(sizeof(board));
+ 	head -> next = NULL;
+ 	
+ 	board*  = (board*)malloc(sizeof(board));
+ 	
+ }
  
 void CursorView()
 {
@@ -1381,16 +1710,12 @@ int main(void)
 				return 0;
 				break;
 			
-			case 3:
-				qr();	
+			case 3:	
 				break;
 				
 			case 4:
 				break;	
 		}
-		
 		system("cls");
 	}
-	
-    return 0;
 }
