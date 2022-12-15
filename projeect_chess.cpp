@@ -23,23 +23,30 @@
 #define queen 5
 #define king 6
 
-int x = 0;
-int y = 0;
-int x_max = 7;
-int y_max = 7;
+int x = 0; // 현재위치를 위한 변수 
+int y = 0; // 현재위치를 위한 변수 
+int x_max = 7; //보드 최대크기 지정 
+int y_max = 7; //보드 최대크기 지정 
+ 
+int arrX = 2; //콘솔창에서 배열0 0 위치 
+int arrY = 2; //콘솔창에서 배열0 0 위치
 
-int arrX = 2;
-int arrY = 2;
+int cnt = 0; // 기물 선택과 기물 선택 취소를 위한 카운트 변수 
 
-int cnt = 0;
+int PickedPieces[2] = {0 , 0}; // x = [0], y = [1] // 최초로 선택한 기물 위치 배열 
 
-int PickedPieces[2] = {0 , 0}; // x = [0], y = [1]
+int temp = 0; // 기물 위치 변경 변수 
 
-int temp = 0;
+int turn = 0; // 플레이어 턴 변수 
 
-int turn = 0;
+///////////흰색 킹, 검은색 킹 좌표 저장 변수 
 
-struct xy_save
+int Bking_x;
+int Bking_y;
+int Wking_x;
+int Wking_y;
+
+struct xy_save // 현재 좌표를 저장하기위한 구조체 
 {
 	int save_x;
 	int save_y;
@@ -51,22 +58,25 @@ void EraseOutline(int mode);
 int KeyControl();
 void control(void);
 void Selected_Pieces(int xx, int yy);
+int Selected_Pieces_chk(int xx, int yy);
 int promotion();
-
-// 1 pawn 2 rook 3 knight 4 bishop 5 queen 6 king
+// 11 pawn 22 rook 33 knight 44 bishop 55 queen 66 king 	Black Pieces
+// 1 pawn 2 rook 3 knight 4 bishop 5 queen 6 king 			White Pieces
 int currentTurn = 1;
 int base_board[8][8] = {
         {12,13,14,15,16,14,13,12},
         {11,11,11,11,11,11,11,11},
+        {0,0,0,3,0,0,0,0},
         {0,0,0,0,0,0,0,0},
-        {0,0,0,0,6,0,0,0},
         {0,0,0,0,0,0,0,0},
         {0,0,0,0,0,0,0,0},
         {1,1,1,1,1,1,1,1},
         {2,3,4,5,6,4,3,2}
-};
+}; // 각 기물의 위치 설정과 이동시 각 기물에 해당하는 숫자도 이동
 
-struct Pieces
+int chk_board[8][8] = {0,};
+
+struct Pieces //기물 구조체 
 {
     char Pawn[8];
 	char Rook[2];
@@ -74,40 +84,9 @@ struct Pieces
 	char Bishop[2];
 	char Queen;
 	char King;
-};
-
-struct Board
-{
-	int board[8][8];
-	int turn;
 	
-	struct Board *next;
-	
-} board, save;
-
-void addFirst(struct Node* target, int data)
-{
-    struct Node* newNode = malloc(sizeof(struct Node));
-    newNode->next = target->next;
-    newNode->data = data;
-    target->next = newNode;
-}
-
-struct Node* findNode(struct Node* node, int data)
-{
-    while (!(node->next == NULL))
-    {
-        if (node->next->data == data)
-        {
-            data = node->next->data;
-			node = node -> next;
-          	return data, node;
-            break;
-        } 
-        else
-            node = node->next;
-    }
-}
+	int total;
+} Black_Pieces, White_Pieces;
 
 char blackWhite[8][8] = {
         {'O','X','O','X','O','X','O','X'},
@@ -118,19 +97,82 @@ char blackWhite[8][8] = {
         {'X','O','X','O','X','O','X','O'},
         {'O','X','O','X','O','X','O','X'},
         {'X','O','X','O','X','O','X','O'}
-};
+}; // 특수 기호 사용전 사용하던 체크보드 
 
-void gotoxy(int x, int y) {
-    //x, y set coordinates
-    COORD pos = { x,y };
-    //console cursor move
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
+/*********************** gotoxy를 사용후 공백을 넣는 이유는 자동으로 이전에 출력된게 지워지지 않기 때문에***********************/
+void gotoxy(int x, int y) // 콘솔 좌표 이동 함수 
+{
+    //x, y set coordinates 좌표 설정 
+    COORD pos = { x,y }; //위치 저장 구조체 
+    //console cursor move 커서이동  
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos); //커서의 위치 이동 함수 
 }
 
-void WhereToGo(void)	//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위로 가는 것 
+void Pieces_Set(void) // 기물 총 갯수와 구조체에 기물에 맞는 문자 삽입 
 {
-	Next.save_x = x;
-	Next.save_y = y;
+	for(int i = 0; i < 8; i++)
+	{
+		Black_Pieces.Pawn[i] = 'P';
+		Black_Pieces.total++; 
+	}
+		
+	for(int i = 0; i < 2; i++)		
+	{
+		Black_Pieces.Rook[i] = 'R';
+		Black_Pieces.total++;
+	}
+		
+	for(int i = 0; i < 2; i++)
+	{
+		Black_Pieces.Knight[i] = 'N';
+		Black_Pieces.total++;
+	}
+		
+	for(int i = 0; i < 2; i++)		
+	{
+		Black_Pieces.Bishop[i] = 'B';
+		Black_Pieces.total++;
+	}
+		
+	Black_Pieces.Queen = 'Q';
+	Black_Pieces.King = 'K';
+	
+	Black_Pieces.total += 2 ;
+	
+	for(int i = 0; i < 8; i++)
+	{
+		White_Pieces.Pawn[i] = 'p';
+		White_Pieces.total++; 
+	}
+	
+	for(int i = 0; i < 2; i++)
+	{
+		White_Pieces.Rook[i] = 'r';
+		White_Pieces.total++;
+	}
+	
+	for(int i = 0; i < 2; i++)
+	{
+		White_Pieces.Knight[i] = 'n';
+		White_Pieces.total++;
+	}
+	
+	for(int i = 0; i < 2; i++)	
+	{
+		White_Pieces.Bishop[i] = 'b';
+		White_Pieces.total++;
+	}
+	
+	White_Pieces.Queen = 'q';
+	White_Pieces.King = 'k';
+
+	White_Pieces.total += 2;
+} 
+
+void Where_To_Go(void)	//선택한 기물의 함수로 이동
+{
+	Next.save_x = x; //두번째로 선택한 위치의 좌표 복사 
+	Next.save_y = y; 
 
 	gotoxy(36,0);	
 	printf("                                             ");	
@@ -138,14 +180,14 @@ void WhereToGo(void)	//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 �
 	printf("                                             ");	
 		
 	gotoxy(36,0);	
-	printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[1], PickedPieces[0], base_board[PickedPieces[1]][PickedPieces[0]]);
+	printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[1], PickedPieces[0], base_board[PickedPieces[1]][PickedPieces[0]]); // 콘솔에서 데이터 확인을 위해 표시 
 	gotoxy(36,2);	
 	printf("마지막으로 찍은 값 X : %d Y : %d data = %d", Next.save_y, Next.save_x, base_board[Next.save_y][Next.save_x]);
 	
-	Selected_Pieces(PickedPieces[0], PickedPieces[1]);
+	Selected_Pieces(PickedPieces[0], PickedPieces[1]); //처음 찍은 기물의 함수로 이동 
 }
 
-void time(void)
+void time(void) // 게임 시작후 흘러간 시간 확인 
 {
 	gotoxy(20, 20);
 	int seconde =  clock() / 1000;
@@ -161,242 +203,123 @@ void time(void)
 	//Sleep(1000);
 }
 
-void move(void)
+int Check_Mate() //체스메이트 함수 테스트 중 
+{
+	for(int i = 0; i < 8; i++)
+		for(int j = 0; j < 8; j++)
+			chk_board[i][j] = base_board[i][j];
+	
+	memcpy(chk_board, base_board, sizeof(int) * 5);
+	
+	Next.save_y = Bking_y;
+	Next.save_x = Bking_x;
+	
+	for(int i = 0; i < 8; i++)
+	{
+		PickedPieces[1] = i;
+		for(int j = 0; j < 8; j++)
+		{
+			PickedPieces[0] = j;
+			
+			if(Selected_Pieces_chk(i, j))
+			{
+				gotoxy(0,25);
+		        printf("                ");
+				gotoxy(0,25);
+		        printf("Cheak Mate! %d %d", i, j);
+		        return 1;
+			}
+		}
+	}
+	
+	for(int i = 0; i < 8; i++)
+		for(int j = 0; j < 8; j++)
+			base_board[i][j] = chk_board[i][j];
+	
+}
+
+void move(void) // 체스 말 이동 함수 
 {	
-	gotoxy(36,8);
-	printf("       ");
 	if(base_board[Next.save_y][Next.save_x])
 	{
 		base_board[Next.save_y][Next.save_x] = base_board[PickedPieces[1]][PickedPieces[0]];
-		base_board[PickedPieces[1]][PickedPieces[0]] = 0;			
-		gotoxy(36,8);
-		printf("attack");
+		base_board[PickedPieces[1]][PickedPieces[0]] = 0;
+		if(base_board[Next.save_y][Next.save_x] > 10)
+			Black_Pieces.total--;
+		else
+			White_Pieces.total--;
 	}
 	
 	else
 	{
 		temp = base_board[Next.save_y][Next.save_x];
 		base_board[Next.save_y][Next.save_x] = base_board[PickedPieces[1]][PickedPieces[0]];
-		base_board[PickedPieces[1]][PickedPieces[0]] = temp;		
-		gotoxy(36,8);
-		printf("move");
+		base_board[PickedPieces[1]][PickedPieces[0]] = temp;
 	}
-	cnt = 0 ;
-	turn++;
 	
-	
-	
-	
+	cnt = 0 ; //기물 선택과 기물 선택 취소를 위한 카운트 변수 초기화 
+	turn++; //기물 이동 후 턴 증가로 다음 턴 사용자가 선택할 수 있도록한다 
 }
 
-int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위로 가는 것  x - 는 왼쪽  
+int Pawn(void) // 폰 함수  
 {	
-	if(turn % 2 == 0) //white  
+	float yy = 0; //현재 폰 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 폰 위치와 이동할 위치의 거리차이 x 변수 
+	
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 폰 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 폰 위치와 이동할 위치의 거리차이 y
+	
+	gotoxy(50,25);								//잠시 체크용  
+	printf("                             ");
+	gotoxy(50,25);
+	printf("yy : %2.f xx : %2.f", yy, xx);
+	
+	if((PickedPieces[1] == 6 && base_board[PickedPieces[1]][PickedPieces[0]] == 1) || (PickedPieces[1] == 1 && base_board[PickedPieces[1]][PickedPieces[0]] == 11)) 
 	{
-		if(PickedPieces[1] == 6) // 최대 2두칸 이동 가능한 상항 
-		{	
-			if(!(base_board[PickedPieces[1] - 1][PickedPieces[0]])) // 앞 2칸에 기물이 있는지 없는지 확인  
-			{
-				if(PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] == Next.save_x) // 1
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("한칸으로 들어감");
-					move();	
-				}
-				
-				if(!(base_board[PickedPieces[1] - 2][PickedPieces[0]])) 
-				{
-				 	if(PickedPieces[1] - 2 == Next.save_y && PickedPieces[0] == Next.save_x) // 2
-					{
-						gotoxy(36,11);
-						printf("                               ");
-						gotoxy(36,11);	
-						printf("두칸으로 들어감");
-						move();	
-					}
-				}
-			}
-			if((base_board[PickedPieces[1] - 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] - 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
-			{
-				
-				gotoxy(50,20);
-				printf("%d", (PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x]);
-				gotoxy(52,20);
-				printf("%d", (PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x]);
-				
-				
-				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("왼쪽 위으로 들어감");
-					move();	
-				}
-				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("오른쪽 위으로 들어감!!");
-					move();	
-				}
-			}
-			else
-			{
-				gotoxy(36,11);
-				printf("                               ");
-				gotoxy(36,11);
-				printf("이동할 위치를 다시 찍어 주세요.") ;
-			}	
-		}
-		else 
+		if((yy == 2 && xx == 0) || (yy == 1 && xx == 0))
 		{
-			if(!(base_board[PickedPieces[1] - 1][PickedPieces[0]]))//앞에 말이 있으면 못 움직임
+			if((turn % 2 == 0 && (!(base_board[Next.save_y][Next.save_x]) && Next.save_y < PickedPieces[1]))) //흰색 폰 
 			{
-				if(PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] == Next.save_x) 
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("한칸으로 들어감");
-					move();	
-				}
+				move(); 
 			}
-			if((base_board[PickedPieces[1] - 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] - 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
+			else if((turn % 2 == 1 && (!(base_board[Next.save_y][Next.save_x]) && Next.save_y > PickedPieces[1]))) //검은색 폰 
 			{
-				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("왼쪽 위으로 들어감");
-					move();	
-				}
-				if((PickedPieces[1] - 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("오른쪽 위으로 들어감!");
-					move();	
-				}
-			}
-			else
-			{
-				gotoxy(36,11);
-				printf("                               ");
-				gotoxy(36,11);
-				printf("이동할 위치를 다시 찍어 주세요.") ;
-				
+				move();
 			}
 		}
-		
+		else if((yy == 1 && xx == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7 && Next.save_y < PickedPieces[1]))) //흰색 폰 
+		{
+			move();
+		}
+		else if((yy == 1 && xx == 1) && (turn % 2 == 1 && ((base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1) &&Next.save_y > PickedPieces[1]))) //검은색 폰 
+		{
+			move();
+		}
 	}
-	else//black
-	{	
-		if(PickedPieces[1] == 1) //2칸 이동 가 능  
-		{	
-			if(!(base_board[PickedPieces[1] + 1][PickedPieces[0]])) // 앞 2칸에 기물이 있는지 없는지 확인  
-			{
-				if(PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] == Next.save_x)
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("한칸이동");
-					move();	
-				}
-				
-				if(!(base_board[PickedPieces[1] + 2][PickedPieces[0]]))
-				{
-					if(PickedPieces[1] + 2 == Next.save_y && PickedPieces[0] == Next.save_x)
-					{	
-						gotoxy(36,11);
-						printf("                               ");
-						gotoxy(36,11);	
-						printf("두칸이동");
-						move();	
-					}
-				}
-			 	
-			if((base_board[PickedPieces[1] + 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] + 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
-			{
-				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("왼쪽 밑으로 들어감??");
-					move();	
-				}
-				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("오른쪽 밑으로 들어감!!");
-					move();	
-				}
-			}
-			}
-			else
-			{
-				gotoxy(36,11);
-				printf("                               ");
-				gotoxy(36,11);
-				printf("이동할 위치를 다시 찍어 주세요.") ;
-				
-			}
-				
-		}
-		else
+	else
+	{
+		if(yy == 1 && xx == 0)
 		{
-			if(!(base_board[PickedPieces[1] + 1][PickedPieces[0]]))
+			if((turn % 2 == 0 && (!(base_board[Next.save_y][Next.save_x]) && Next.save_y < PickedPieces[1]))) //흰색 폰 
 			{
-				if(PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] == Next.save_x)
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("한칸이동");
-					move();	
-				}
+				move(); 
 			}
-			if((base_board[PickedPieces[1] + 1][PickedPieces[0] + 1]) || (base_board[PickedPieces[1] + 1][PickedPieces[0] - 1])) // 적 말이 왔을 때 공격 모션 
+			else if((turn % 2 == 1 && (!(base_board[Next.save_y][Next.save_x]) && Next.save_y > PickedPieces[1]))) //검은색 폰 
 			{
-				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] - 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("왼쪽 밑으로 들어감");
-					move();	
-				}
-				if((PickedPieces[1] + 1 == Next.save_y && PickedPieces[0] + 1 == Next.save_x) && base_board[Next.save_y][Next.save_x])
-				{	
-					gotoxy(36,11);
-					printf("                               ");
-					gotoxy(36,11);	
-					printf("오른쪽 밑으로 들어감!");
-					move();	
-				}
-			}
-			else
-			{
-				gotoxy(36,11);
-				printf("                               ");
-				gotoxy(36,11);
-				printf("Please reset the location to move to.") ;
-				
+				move();
 			}
 		}
-		
+		else if((yy == 1 && xx == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7 && Next.save_y < PickedPieces[1]))) //흰색 폰 
+		{
+			move(); 
+		}
+		else if((yy == 1 && xx == 1) && (turn % 2 == 1 && ((base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1) &&Next.save_y > PickedPieces[1]))) //검은색 폰 
+		{
+			move();
+		}
 	}
 	
-	if((y == 0 || y == 7) && ((base_board[y][x] == 1) || (base_board[y][x] == 11))) 
+	if((y == 0 || y == 7) && ((base_board[y][x] == 1) || (base_board[y][x] == 11))) //보드의 위 아래에 도착할 시 다른 킹 제외 다른 기물로 전환을 위한 조건 
 	{
 		//cnt is changed and the player's turn is passed, so set the chess piece settings in reverse
 		
@@ -420,7 +343,7 @@ int Pawn(void)//배열좌표에서 +를 해야 밑으로 내려가며 -가 위쪽 플레이어 기준 위�
 	}
 }
 
-int promotion()
+int promotion() // 폰을 다른 기물로 바꾸는 함수 
 {	
 	Cursor.save_x = x;
 	Cursor.save_y = y;
@@ -442,7 +365,7 @@ int promotion()
 		gotoxy(36,17);
 		printf("Queen 5");
 		
-		char c = KeyControl();
+		char c = KeyControl(); //콘솔 좌표로 구분하기에 다른 조작 함수로 통일 못 함 
 		switch (c) {
 		    case DOWN:
 		        if (select != 17)
@@ -481,15 +404,15 @@ int promotion()
 	}
 }
 
-void Rook(void)
+int Rook(void) // 룩 함수 
 {
 	int emty = 0;
 
-	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
-	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	float yy = 0; //현재 폰 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 폰 위치와 이동할 위치의 거리차이 x 변수 
 	
-	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
-	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 폰 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 폰 위치와 이동할 위치의 거리차이 y
 	
 	gotoxy(50,25);								//잠시 체크용  
 	printf("                             ");
@@ -550,45 +473,55 @@ void Rook(void)
 		
 		//이동 가능한가에 대한 판단 
 		if(!(emty)) // 아무것도 없을때 
+		{
 			move();
+			return 1;
+		}
+			
 			
 		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+		{
 			move();
-			
+			return 1;
+		}
+		
 		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+		{
 			move();
-			
+			return 1;
+		}
+				
 		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+		{
 			move();
+			return 1;
+		}
 			
 		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
-			move(); 
-
-			
+		{
+			move();
+			return 1;
+		}			
 	}
 	else
 	{
 		gotoxy(50,26);
 		printf("                      ");
 	}
-
 }
 
-void Knight(void)
+int Knight(void) // 나이트 함수 
 {
 	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
-	int cntline = 0;
 	
 	gotoxy(50,27);
 	printf("   ");
 	
-	//기울기를 사용하여 이동 
+	float yy = 0; //현재 나이트 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 나이트 위치와 이동할 위치의 거리차이 x 변수 
 	
-	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
-	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
-	
-	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
-	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 나이트 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 나이트 위치와 이동할 위치의 거리차이 y
 	
 	gotoxy(50,25);								//잠시 체크용  
 	printf("                             ");
@@ -597,11 +530,17 @@ void Knight(void)
 	
 	if(yy == 2 && xx == 1 || yy == 1 && xx == 2)
 	{
-		if((turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7) || !(base_board[Next.save_y][Next.save_x]))
+		if((turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7) || !(base_board[Next.save_y][Next.save_x]))		// 흰색 일떄 비어있거나 검은색에 해당하는 기물인지 판다 조건 
+		{
 			move();
+			return 1;
+		}
 					
-		else if((turn % 2 == 1 && base_board[Next.save_y][Next.save_x] < 7) || !(base_board[Next.save_y][Next.save_x]))
+		else if((turn % 2 == 1 && base_board[Next.save_y][Next.save_x] < 7) || !(base_board[Next.save_y][Next.save_x]))	// 검은색 일떄 비어있거나 흰색에 해당하는 기물인지 판다 조건 
+		{
 			move();
+			return 1;
+		}
 	}
 	else
 	{
@@ -610,7 +549,7 @@ void Knight(void)
 	}
 }
 
-void Bishop(void)
+int Bishop(void) // 비숍 함수 
 {
 	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
 	int cntline = 0;
@@ -667,18 +606,34 @@ void Bishop(void)
 			
 			//이동 가능한가에 대한 판단 
 			if(!(emty)) // 아무것도 없을때 
+			{
 				move();
-			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
-				move();
+				return 1;
+			}
 				
-			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰
+			{
 				move();
+				return 1;
+			}
+			
+			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검
+			{
+				move();
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+			{
 				move();
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+			{
 				move(); 
+				return 1;
+			}
 		}
 		else // up
 		{
@@ -707,18 +662,33 @@ void Bishop(void)
 			
 			//이동 가능한가에 대한 판단
 			if(!(emty)) // 아무것도 없을때 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+			{
 				move(); 
+				return 1;
+			}
 		}
 	}
 	else
@@ -730,26 +700,21 @@ void Bishop(void)
 	cntline = 0;
 }
 
-void Queen(void)
+int Queen(void) // 퀸 함수 
 {
+	
+	// 퀸의 움직임은 비숍과 룩 합친것과 같다. 
+	
 	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
-	int cntline = 0;
 	
-	gotoxy(50,27);
-	printf("   ");
-	
+	int cntline = 0; 
 	//기울기를 통한 대각선 이동 
 	
-	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
-	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
+	float yy = 0; //현재 퀸 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 퀸 위치와 이동할 위치의 거리차이 x 변수 
 	
-	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
-	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
-	
-	gotoxy(50,25);								//잠시 체크용  
-	printf("                             ");
-	gotoxy(50,25);
-	printf("yy : %2.f xx : %2.f", yy, xx);
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 퀸 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 퀸 위치와 이동할 위치의 거리차이 y
 	
 	float inclination = yy / xx; 
 
@@ -787,18 +752,33 @@ void Queen(void)
 			
 			//이동 가능한가에 대한 판단 
 			if(!(emty)) // 아무것도 없을때 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+			{
 				move(); 
+				return 1;
+			}
 		}
 		else // up
 		{
@@ -827,18 +807,34 @@ void Queen(void)
 			
 			//이동 가능한가에 대한 판단
 			if(!(emty)) // 아무것도 없을때 
-				move();
+			{
+				move(); 
+				return 1;
+			}
+			
 			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
-				move();
+			{
+				move(); 
+				return 1;
+			}
 				
 			else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
+			{
 				move(); 
+				return 1;
+			}
 		}
 	}
 	else if(Next.save_x == PickedPieces[0]) // up down 
@@ -863,15 +859,34 @@ void Queen(void)
 		
 		//이동 가능한가에 대한 판단 
 		if(!(emty)) // 아무것도 없을때 
+		{
 			move();
+			return 1;
+		}
+		
 		else if(emty == 1 && ((xx == 1 && yy == 1) && (turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7))) // 흰 
+		{
 			move();
+			return 1;
+		}
+		
 		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+		{
 			move();
+			return 1;
+		}
+		
 		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7))) // 흰 
+		{
 			move();
+			return 1;
+		}
+		
 		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
-			move(); 
+		{
+			move();
+			return 1;
+		}
 	}
 	
 	else if(Next.save_y == PickedPieces[1]) // left right
@@ -895,19 +910,34 @@ void Queen(void)
 		
 		//이동 가능한가에 대한 판단 
 		if(!(emty)) // 아무것도 없을때 
+		{
 			move();
+			return 1;
+		}
 			
 		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] > 7)))) // 흰 
+		{
 			move();
+			return 1;
+		}
 			
 		else if(emty == 1 && (xx == 1 && yy == 1 && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) //검 
+		{
 			move();
+			return 1;
+		}
 			
 		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 0 && (base_board[Next.save_y][Next.save_x] > 7)))) //흰 
+		{
 			move();
+			return 1;
+		}
 			
 		else if(emty == 1 && (!(xx == 1 && yy == 1) && (turn % 2 == 1 && (base_board[Next.save_y][Next.save_x] < 7 && base_board[Next.save_y][Next.save_x] >= 1)))) // 검
-			move(); 	
+		{
+			move();
+			return 1;
+		}
 	}
 	else
 	{
@@ -916,36 +946,46 @@ void Queen(void)
 	}
 }
 
-void King(void)
+int King(void) // 킹 함수 
 {
 	int emty = 0; //이동할 위치사이의 기물존재 확인을 위한 변수  
-	int cntline = 0;
 	
-	gotoxy(50,27);
-	printf("   ");
+	float yy = 0; //현재 킹 위치와 이동할 위치의 거리차이 y 변수  
+	float xx = 0; //현재 킹 위치와 이동할 위치의 거리차이 x 변수 
 	
-	float yy = 0; //현재 비숍 위치와 이동할 위치의 거리차이 y 변수  
-	float xx = 0; //현재 비숍 위치와 이동할 위치의 거리차이 x 변수 
-	
-	yy = abs(Next.save_y - PickedPieces[1]); //현재 비숍 위치와 이동할 위치의 거리차이 x
-	xx = abs(Next.save_x - PickedPieces[0]); //현재 비숍 위치와 이동할 위치의 거리차이 y
-	
-	gotoxy(50,25);								//잠시 체크용  
-	printf("                             ");
-	gotoxy(50,25);
-	printf("yy : %2.f xx : %2.f", yy, xx);
+	yy = abs(Next.save_y - PickedPieces[1]); //현재 킹 위치와 이동할 위치의 거리차이 x
+	xx = abs(Next.save_x - PickedPieces[0]); //현재 킹 위치와 이동할 위치의 거리차이 y
 	
 	if((yy == 1 && xx == 1) || ((yy == 1 && xx == 0) || (yy == 0 && xx == 1)))
 	{
-		if((turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7) || !(base_board[Next.save_y][Next.save_x]))
+		if((turn % 2 == 0 && base_board[Next.save_y][Next.save_x] > 7) || !(base_board[Next.save_y][Next.save_x])) //흰 기물일 경우 
+		{
 			move();
+			Wking_x = Next.save_x;
+			Wking_y = Next.save_y;
+			gotoxy(0,24);
+	        printf("                ");
+			gotoxy(0,24);
+	        printf("W King %d %d", Wking_y, Wking_x);
+	        return 1;
+		}
+			
 					
-		else if((turn % 2 == 1 && base_board[Next.save_y][Next.save_x] < 7) || !(base_board[Next.save_y][Next.save_x]))
+		else if((turn % 2 == 1 && base_board[Next.save_y][Next.save_x] < 7) || !(base_board[Next.save_y][Next.save_x])) //검은 기물일 경우 
+		{
 			move();
+			Bking_x = Next.save_x;
+			Bking_y = Next.save_y;
+			gotoxy(0,23);
+	        printf("                ");
+			gotoxy(0,23);
+	        printf("B King %d %d", Bking_y, Bking_x);
+	        return 1;
+		}
 	}
 }
 
-void Selected_Pieces(int xx, int yy)
+void Selected_Pieces(int xx, int yy) // 기물 선택 후 해당 기물의 함수로 이어주는 함수 
 {
 	gotoxy(0, (y_max * 2) + 6);
 	printf("                ");
@@ -953,7 +993,7 @@ void Selected_Pieces(int xx, int yy)
 	switch(base_board[yy][xx])
 	{	
 		case 1:
-		case 11:
+		case 11:	//11이나 12가 있는 이유는 검은색과 흰색을 구분 하기 위해서이다. 
 			
 			printf("1 pawn\n");
 			Pawn();
@@ -991,12 +1031,64 @@ void Selected_Pieces(int xx, int yy)
 	}
 }
 
-void control(void)
+int Selected_Pieces_chk(int xx, int yy) //테스트 
+{
+	gotoxy(0, (y_max * 2) + 6);
+	printf("                ");
+	gotoxy(0, (y_max * 2) + 6);
+	switch(base_board[yy][xx])
+	{	
+		case 1:
+		case 11:
+			
+			printf("1 pawn\n");
+			if(Pawn())
+				return 1;
+			break;
+		
+		case 2:
+		case 12:
+			printf("2 rock\n");
+			if(Rook())
+				return 1;
+			break;
+		
+		case 3:
+		case 13:
+			printf("3 knight\n");
+			if(Knight())
+				return 1;
+			break;
+		
+		case 4:
+		case 14:				
+			printf("4 bishop\n");
+			if(Bishop())
+				return 1;
+			break;
+		
+		case 5:
+		case 15:	
+			printf("5 queen\n");
+			if(Queen())
+				return 1;
+			break;
+			
+		case 6:
+		case 16:	
+			printf("6 king\n");
+			if(King())
+				return 1;
+			break;		
+	}
+}
+
+void control(void) // 방향키 조작 함수 
 {
 	char c;
 	c = KeyControl(); // Move the chessboard and select pieces
 	switch (c) {
-	    case LEFT:
+	    case LEFT:	// LEFT 75로 정의 하여 사용하였고 또한 방향키는 특수한 기호라 2개의 수가 들어오며 그중 뒷자리의 수를 사용한다. 
 	        if (x != 1)
 	        {
 	        	gotoxy(x--, y);
@@ -1033,7 +1125,7 @@ void control(void)
 	}
 }
 
-void ChessPieces(void)
+void ChessPieces(void) // 해당 위치에 있는 기물 표시 함수 
 {
 	gotoxy(0, (y_max * 2) + 6);
 	printf("                ");
@@ -1041,7 +1133,7 @@ void ChessPieces(void)
 	switch(base_board[y][x])
 	{	
 		case 1:
-		case 11:
+		case 11:			//11이나 12가 있는 이유는 검은색과 흰색을 구분 하기 위해서이다. 
 			
 			printf("1 pawn\n");
 			break;
@@ -1073,13 +1165,13 @@ void ChessPieces(void)
 	}
 }
 
-int KeyControl()
+int KeyControl() // 방향키와 WASD조작 등 키 입력 함수 
 {
-	char input = getch(); //Because getchar uses a buffer, getch is used, and it is not displayed like getchar and getche.
-	
-	if(input == ' ' || input == '\r') // Confirm the input of the space bar, and since getch comes in \r after enter, put \r to check if enter is entered
-		return Select;
-	else if((input == 'A' || input == 'a') || input == LEFT)
+	char input = getch();	//Because getchar uses a buffer, getch is used, and it is not displayed like getchar and getche.
+							//getchar는 버퍼를 사용하기 때문에 getch를 사용하며 getchar, getche처럼 표시되지 않는다.
+	if(input == ' ' || input == '\r')	// Confirm the input of the space bar, and since getch comes in \r after enter, put \r to check if enter is entered 
+		return Select;					// 스페이스바의 입력을 확인한 다음 getch는 enter 뒤에 \r이 나오므로 enter가 입력되었는지 확인하기 위해 \r을 입력한다.
+	else if((input == 'A' || input == 'a') || input == LEFT) // 대문자 소문자 방향키로 이동 가능 하도록 주는 조건이며 
 		return LEFT;
 		
 	else if((input == 'D' || input == 'd') || input == RIGHT)
@@ -1090,17 +1182,18 @@ int KeyControl()
 		
 	else if((input == 'S' || input == 's') || input == DOWN)
 		return DOWN;
-	else if(input == ESC)
+	else if(input == ESC) 
 		return ESC;
 }
  
-int Rules(void)
+int Rules(void) // 규칙 표시 함수 
 {
 	printf("\t\tGame Rules\n\n\n");
 	printf("Use the arrow keys and W, A, S, D to move.\n");
 	
 	printf("Press enter to exit to menu\n");
-	while(1)
+	
+	while(1) // 엔터 입력 전까지 화면 표시 
 	{
 		if(getch() == Select)
 			break;
@@ -1109,7 +1202,7 @@ int Rules(void)
 	return 0;	
 } 
  
-void title(void) 
+void title(void) // 메뉴 화면 표시 함수 
 {
 	system("cls");
 	printf("#################################################################################################\n");
@@ -1137,8 +1230,22 @@ void title(void)
 	gotoxy(48, 15);
 	printf("Test Case");
 } 
+
+int draw_show() // 무승부시 뜨는 화면 출력 함수 
+{
+	printf("																		");
+	printf("					______                        						");
+	printf("					|  _  \                       						");
+	printf("					| | | | _ __   __ _ __      __						");
+	printf("					| | | || '__| / _` |\ \ /\ / /						");
+	printf("					| |/ / | |   | (_| | \ V  V / 						");
+	printf("					|___/  |_|    \__,_|  \_/\_/  						");
+	printf("                              											");
+                              
+	return 0;
+}
  
-int MenuDraw()
+int MenuDraw() // 메뉴선택 바 표시 및 선택 함수 
 {
 	int menu_y = 12, menu_x = 48;
 		
@@ -1185,7 +1292,7 @@ int MenuDraw()
 	}	
 }
 
-void EraseOutline(void) 
+void EraseOutline(void) // 체크보드에서 움직인 후 그 전에 위치한 곳의 윤곽선 지우기 
 {
 	for(int i = 0; i <= 4; i++) // Delete previously taken coordinate contours 
 	{
@@ -1222,10 +1329,8 @@ void EraseOutline(void)
 	}
 }
 
-int BoardControl(int x, int y) //Editing
+int BoardControl(int x, int y) //테스트 중 
 {
-	// A 1 == xy 2 2
-	
 	if(x != 1) // Coordinate outline currently being taken
 	{
 		gotoxy(arrX - 2, arrY); // 9
@@ -1299,7 +1404,7 @@ int BoardControl(int x, int y) //Editing
 	Erase.save_y = arrY;
 }
 
-int BoardControl1(void)
+int BoardControl1(void) // 체크보드에서 움직일 떄 마다 윤곽선 표시 함수 
 {
     // A 1 == xy 2 2
 
@@ -1339,44 +1444,29 @@ int BoardControl1(void)
 	Erase.save_y = arrY;
 }
   
+int winloss_check() // 체크 함수 테스트 
+{
+	if(Black_Pieces.total <= 3 && White_Pieces.total <= 3)
+	{
+		system("cls");
+		draw_show();
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+  
 int Game()
 {	
-	
-	struct Pieces Black_Pieces;
-	struct Pieces White_Pieces;
-	
-	for(int i = 0; i < 8; i++)
-		Black_Pieces.Pawn[i] = 'P';
-	
-	for(int i = 0; i < 2; i++)		
-		Black_Pieces.Rook[i] = 'R';
-	
-	for(int i = 0; i < 2; i++)		
-		Black_Pieces.Knight[i] = 'N';
-	
-	for(int i = 0; i < 2; i++)		
-		Black_Pieces.Bishop[i] = 'B';
-	
-	Black_Pieces.Queen = 'Q';
-	Black_Pieces.King = 'K';
-	
-	for(int i = 0; i < 8; i++)
-		White_Pieces.Pawn[i] = 'p';
-	
-	for(int i = 0; i < 2; i++)	
-		White_Pieces.Rook[i] = 'r';
-	
-	for(int i = 0; i < 2; i++)
-		White_Pieces.Knight[i] = 'n';
-	
-	for(int i = 0; i < 2; i++)	
-		White_Pieces.Bishop[i] = 'b';
-	
-	White_Pieces.Queen = 'q';
-	White_Pieces.King = 'k';
-	
+	Pieces_Set();
+
 	while(1)
 	{
+		if(winloss_check())
+			return 0;
+		
 		gotoxy(0, 0); //gotoxy test
 		printf("J");
 		
@@ -1489,6 +1579,12 @@ int Game()
 							
 							case 6:
 								printf("%c", Black_Pieces.King);
+								Bking_y = i;
+								Bking_x = j;
+								gotoxy(0,23);
+						        printf("                ");
+								gotoxy(0,23);
+						        printf("B King %d %d", Bking_y, Bking_x);
 								break;	
 						}	
 					}
@@ -1519,6 +1615,12 @@ int Game()
 							
 							case 6:
 								printf("%c", White_Pieces.King);
+								Wking_y = i;
+								Wking_x = j;
+								gotoxy(0,24);
+						        printf("                ");
+								gotoxy(0,24);
+						        printf("W King %d %d", Wking_y, Wking_x);
 								break;	
 						}
 					}
@@ -1541,7 +1643,6 @@ int Game()
 		printf("처음으로 찍은 값 X : %d Y : %d data = %d", PickedPieces[1], PickedPieces[0], base_board[PickedPieces[1]][PickedPieces[0]]);
 		gotoxy(36,2);	
 		printf("마지막으로 찍은 값 X : %d Y : %d data = %d", Next.save_y, Next.save_x, base_board[Next.save_y][Next.save_x]);
-		
 		
 		c = KeyControl(); // Move the chessboard and select pieces
 		switch (c) {
@@ -1605,8 +1706,7 @@ int Game()
 							printf("                                   ");
 							gotoxy(0,23);
 							printf("공격할 기물을 선택하셨습니다.");
-							WhereToGo();
-							//Selected_Pieces();	
+							Where_To_Go();	
 						}
 					}
 					
@@ -1648,11 +1748,7 @@ int Game()
 						printf(" 							       				  ");
 						gotoxy(36,6);
 						printf("두번째 선택");
-						gotoxy(0,25);
-						printf("                      ");
-						gotoxy(0,25);
-						printf("%d %d", x, y);
-						WhereToGo();
+						Where_To_Go();
 					}
 					else
 					{
@@ -1669,18 +1765,7 @@ int Game()
 	}
 } 
  
- void list(void)
- {
- 	save.Board = base_board;
- 	
- 	board* head = (board*)malloc(sizeof(board));
- 	head -> next = NULL;
- 	
- 	board*  = (board*)malloc(sizeof(board));
- 	
- }
- 
-void CursorView()
+void CursorView() //커서 없애기 // 블로그에서 가져옴 
 {
     CONSOLE_CURSOR_INFO cursorInfo = { 0, };
     cursorInfo.dwSize = 1; //커서 굵기 (1 ~ 100)
