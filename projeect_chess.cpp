@@ -240,17 +240,18 @@ int Check_Mate() //체스메이트 함수 테스트 중
 
 void move(void) // 체스 말 이동 함수 
 {	
-	if(base_board[Next.save_y][Next.save_x])
+	if(base_board[Next.save_y][Next.save_x]) // 이동할 위치에 다른 기물이 존재하는 경우 
 	{
 		base_board[Next.save_y][Next.save_x] = base_board[PickedPieces[1]][PickedPieces[0]];
 		base_board[PickedPieces[1]][PickedPieces[0]] = 0;
+		
 		if(base_board[Next.save_y][Next.save_x] > 10)
 			Black_Pieces.total--;
 		else
 			White_Pieces.total--;
 	}
 	
-	else
+	else // 이동할 위치에 다른 기물이 존재하지 않은 경우 
 	{
 		temp = base_board[Next.save_y][Next.save_x];
 		base_board[Next.save_y][Next.save_x] = base_board[PickedPieces[1]][PickedPieces[0]];
@@ -1031,58 +1032,6 @@ void Selected_Pieces(int xx, int yy) // 기물 선택 후 해당 기물의 함수로 이어주는
 	}
 }
 
-int Selected_Pieces_chk(int xx, int yy) //테스트 
-{
-	gotoxy(0, (y_max * 2) + 6);
-	printf("                ");
-	gotoxy(0, (y_max * 2) + 6);
-	switch(base_board[yy][xx])
-	{	
-		case 1:
-		case 11:
-			
-			printf("1 pawn\n");
-			if(Pawn())
-				return 1;
-			break;
-		
-		case 2:
-		case 12:
-			printf("2 rock\n");
-			if(Rook())
-				return 1;
-			break;
-		
-		case 3:
-		case 13:
-			printf("3 knight\n");
-			if(Knight())
-				return 1;
-			break;
-		
-		case 4:
-		case 14:				
-			printf("4 bishop\n");
-			if(Bishop())
-				return 1;
-			break;
-		
-		case 5:
-		case 15:	
-			printf("5 queen\n");
-			if(Queen())
-				return 1;
-			break;
-			
-		case 6:
-		case 16:	
-			printf("6 king\n");
-			if(King())
-				return 1;
-			break;		
-	}
-}
-
 void control(void) // 방향키 조작 함수 
 {
 	char c;
@@ -1190,6 +1139,8 @@ int Rules(void) // 규칙 표시 함수
 {
 	printf("\t\tGame Rules\n\n\n");
 	printf("Use the arrow keys and W, A, S, D to move.\n");
+	printf("Press Enter and Spacebar to select.\n");
+	printf("");
 	
 	printf("Press enter to exit to menu\n");
 	
@@ -1226,11 +1177,8 @@ void title(void) // 메뉴 화면 표시 함수
 	
 	gotoxy(48, 14);
 	printf("Exit Game");
-
-	gotoxy(48, 15);
-	printf("Test Case");
 } 
-
+/*
 int draw_show() // 무승부시 뜨는 화면 출력 함수 
 {
 	printf("																		");
@@ -1244,20 +1192,45 @@ int draw_show() // 무승부시 뜨는 화면 출력 함수
                               
 	return 0;
 }
- 
+
+int Wwin_show() // 무승부시 뜨는 화면 출력 함수 
+{
+
+	printf("														\n");
+	printf(" _    _  _      _  _           _    _  _        		\n");
+	printf("| |  | || |    (_)| |         | |  | |(_)       		\n");
+	printf("| |  | || |__   _ | |_   ___  | |  | | _  _ __  		\n");
+	printf("| |/\| || '_ \ | || __| / _ \ | |/\| || || '_ \ 		\n");
+	printf("\  /\  /| | | || || |_ |  __/ \  /\  /| || | | |		\n");
+	printf(" \/  \/ |_| |_||_| \__| \___|  \/  \/ |_||_| |_|		\n");
+                                                                        
+	return 0;
+}
+
+int Bwin_show() // 무승부시 뜨는 화면 출력 함수 
+{
+
+	printf("														\n");
+	printf("______  _               _      _    _  _        		\n");
+	printf("| ___ \| |             | |    | |  | |(_)       		\n");
+	printf("| |_/ /| |  __ _   ___ | | __ | |  | | _  _ __  		\n");
+	printf("| ___ \| | / _` | / __|| |/ / | |/\| || || '_ \ 		\n");
+	printf("| |_/ /| || (_| || (__ |   <  \  /\  /| || | | |		\n");
+	printf("\____/ |_| \__,_| \___||_|\_\  \/  \/ |_||_| |_|		\n");
+                                                                                                           
+	return 0;
+}
+ */
 int MenuDraw() // 메뉴선택 바 표시 및 선택 함수 
 {
 	int menu_y = 12, menu_x = 48;
 		
 	while(1)
 	{	
-		gotoxy(menu_x,16);
-		printf("Select : %d", menu_y - 11);
-	
 		char c = KeyControl();
 		switch (c) {
 		    case DOWN:
-		        if (menu_y != 15)
+		        if (menu_y != 14)
 		        {
 		        	gotoxy(menu_x - 3, menu_y++);
 		            printf("  ");
@@ -1281,12 +1254,7 @@ int MenuDraw() // 메뉴선택 바 표시 및 선택 함수
 		    		return 0;
 				
 				else if(menu_y == 13)
-					return 1;
-				
-				else if(menu_y == 14)
-					return 2;
-				else if(menu_y == 15)
-					return 3;		
+					return 1;	
 				break;		
 		}
 	}	
@@ -1329,81 +1297,6 @@ void EraseOutline(void) // 체크보드에서 움직인 후 그 전에 위치한 곳의 윤곽선 지�
 	}
 }
 
-int BoardControl(int x, int y) //테스트 중 
-{
-	if(x != 1) // Coordinate outline currently being taken
-	{
-		gotoxy(arrX - 2, arrY); // 9
-		printf("■");
-	
-		gotoxy(arrX - 2, arrY - 1);// 11
-		printf("■");
-		
-		gotoxy(arrX - 2, arrY + 1); // 8
-		printf("■");
-	}
-	
-	gotoxy(arrX, arrY - 1); // 12
-	printf("■");
-
-	gotoxy(arrX, arrY + 1); // 6
-	printf("■");
-	
-	if(x != 8)
-	{
-		gotoxy(arrX + 2, arrY - 1); //2
-		printf("■");
-		
-		gotoxy(arrX + 2, arrY); // 3
-		printf("■");
-		
-		gotoxy(arrX + 2, arrY + 1); // 4
-		printf("■");
-	}
-	
-	if(base_board[y - 1][x - 1] == pawn && cnt)
-	{
-		if(y == 2 || y == 7)
-		{
-			for(int i = 0; i <= 4; i += 2)	
-			{
-				if(x != 1) // Coordinate outline currently being taken
-				{
-					gotoxy(arrX - 2, arrY + i); // 9
-					printf("■");
-					
-					gotoxy(arrX - 2, arrY + i - 1);// 11
-					printf("■");
-					
-					gotoxy(arrX - 2, arrY + i + 1); // 8
-					printf("■");
-				}
-				
-				gotoxy(arrX, arrY + i - 1); // 12
-				printf("■");
-				
-				gotoxy(arrX, arrY + i + 1); // 6
-				printf("■");
-				
-				if(x != 8)
-				{
-					gotoxy(arrX + 2, arrY + i - 1); //2
-					printf("■");
-					
-					gotoxy(arrX + 2, arrY + i); // 3
-					printf("■");
-					
-					gotoxy(arrX + 2, arrY + i + 1); // 4
-					printf("■");
-				}
-			}
-		}
-	}
-	
-	Erase.save_x = arrX;
-	Erase.save_y = arrY;
-}
-
 int BoardControl1(void) // 체크보드에서 움직일 떄 마다 윤곽선 표시 함수 
 {
     // A 1 == xy 2 2
@@ -1443,8 +1336,8 @@ int BoardControl1(void) // 체크보드에서 움직일 떄 마다 윤곽선 표시 함수
 	Erase.save_x = arrX;
 	Erase.save_y = arrY;
 }
-  
-int winloss_check() // 체크 함수 테스트 
+  /*
+int winloss_check() // 승패 판단 함수 
 {
 	if(Black_Pieces.total <= 3 && White_Pieces.total <= 3)
 	{
@@ -1452,20 +1345,28 @@ int winloss_check() // 체크 함수 테스트
 		draw_show();
 		return 1;
 	}
-	else
+	else if(Black_Pieces.total == 0)
 	{
-		return 0;
+		system("cls");
+		Wwin_show();
+		return 1;
+	}
+	else if(White_Pieces.total == 0)
+	{
+		system("cls");
+		Bwin_show();
+		return 1;
 	}
 }
-  
+  */
 int Game()
 {	
 	Pieces_Set();
 
 	while(1)
 	{
-		if(winloss_check())
-			return 0;
+	//	if(winloss_check())
+	//		return 0;
 		
 		gotoxy(0, 0); //gotoxy test
 		printf("J");
@@ -1756,9 +1657,8 @@ int Game()
 						printf("                               ");
 						cnt = 0;
 						gotoxy(0,23);
-						printf("기물을 선택해 주세요. pick the pieces");
+						printf("기물을 선택해 주세요.");
 					}
-
 				}
 		    	break; 
 		}
